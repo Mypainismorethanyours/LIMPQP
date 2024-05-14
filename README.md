@@ -100,8 +100,6 @@ cd quantization_training && python -m torch.distributed.launch --nproc_per_node=
 
 #### Evaluation
 
-Evaluate:
-
 ```
 cd quantization_training && python -m torch.distributed.launch --nproc_per_node=2 main.py {YAML_FILE.YAML}
 ```
