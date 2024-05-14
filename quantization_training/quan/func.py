@@ -90,5 +90,5 @@ class SwithableBatchNorm():
 QuanModuleMapping = {
     torch.nn.Conv2d: QuanConv2d,
     torch.nn.Linear: QuanLinear,
-    timm.models.layers.linear.Linear: QuanLinear,
+    timm.layers.linear.Linear: QuanLinear,
 }

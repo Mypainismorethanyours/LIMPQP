@@ -22,7 +22,7 @@ from process import start_cal_bn, train, validate, PerformanceScoreboard
 def main():
     script_dir = Path.cwd()
     args = util.get_config(default_file=script_dir /
-                           'finetune_resnet50_w3a4_12.2compression_ratio.yaml')
+                           'finetune_resnet50_w3a4_12.2compression_ratio2.yaml')
     
     monitors = None
     assert args.training_device == 'gpu', 'NOT SUPPORT CPU TRAINING NOW'
@@ -31,7 +31,13 @@ def main():
         output_dir = script_dir / args.output_dir
         output_dir.mkdir(exist_ok=True)
 
-        log_dir = util.init_logger(
+        # if args.system == 'win':
+        #     log_dir = util.init_logger_win(
+        #         args.name, output_dir, script_dir / 'logging.conf')
+        # else:
+        #     log_dir = util.init_logger(
+        #         args.name, output_dir, script_dir / 'logging.conf')
+        log_dir = util.init_logger_win(
             args.name, output_dir, script_dir / 'logging.conf')
         logger = logging.getLogger()
 
@@ -59,8 +65,9 @@ def main():
         args.world_size = torch.distributed.get_world_size()
         args.rank = torch.distributed.get_rank()
 
+
     assert args.rank >= 0, 'ERROR IN RANK'
-    assert args.distributed
+    # assert args.distributed
 
     model = create_model(args)  # main model
     start_epoch = 0
@@ -69,6 +76,8 @@ def main():
     assert training_mode in ['mixed_precision', 'curriculum_mixed_precision']
     
     modules_to_replace = quan.find_modules_to_quantize(model, args)
+    # if args.quan == 1:
+    #     model = quan.replace_module_by_names(model, modules_to_replace)
     model = quan.replace_module_by_names(model, modules_to_replace)
 
     if args.local_rank == 0:
@@ -78,7 +87,8 @@ def main():
         logger.info('Inserted quantizers into the original model')
 
     model.cuda()
-    model = DistributedDataParallel(model, device_ids=[args.local_rank], find_unused_parameters=True)
+    if args.distributed:
+        model = DistributedDataParallel(model, device_ids=[args.local_rank], find_unused_parameters=True)
 
     optimizer = create_optimizer(args, model)
     
@@ -89,7 +99,10 @@ def main():
         print(model)
 
     # ------------- data --------------
-    train_loader, val_loader, test_loader, dist_sampler = util.data_loader.DDP_load_data(args.dataloader)
+    if args.distributed:
+        train_loader, val_loader, test_loader, dist_sampler = util.data_loader.DDP_load_data(args.dataloader)
+    else:
+        train_loader, val_loader, test_loader= util.data_loader.load_data(args.dataloader)
     
     lr_scheduler, num_epochs = create_scheduler(args, optimizer)
 
@@ -113,8 +126,8 @@ def main():
         validate((train_loader, val_loader), model, criterion, -1, monitors, args, batchnorm_calibration=True)
     else:  # training
         for epoch in range(start_epoch, num_epochs):
-            if args.distributed:
-                dist_sampler.set_epoch(epoch)
+            # if args.distributed:
+            #     dist_sampler.set_epoch(epoch)
             if args.local_rank == 0:
                 logger.info('>>>>>>>> Epoch %3d' % epoch)
                 
@@ -143,10 +156,10 @@ def main():
 
                 # save main model
                 util.save_checkpoint(epoch, args.arch, model, {
-                                     'top1': v_top1, 'top5': v_top5}, is_best, args.name, log_dir, optimizer=optimizer)
+                                     'top1': v_top1, 'top5': v_top5}, is_best, args.name, optimizer=optimizer)
 
-        logger.info('>>>>>>>> Epoch -1 (final model evaluation)')
-        validate((train_loader, test_loader), model, criterion, -1, monitors, args, batchnorm_calibration=True)
+        # logger.info('>>>>>>>> Epoch -1 (final model evaluation)')
+        # validate((train_loader, test_loader), model, criterion, -1, monitors, args, batchnorm_calibration=True)
 
     if args.local_rank == 0:
         tbmonitor.writer.close()  # close the TensorBoard

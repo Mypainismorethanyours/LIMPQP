@@ -1,5 +1,4 @@
 import copy
-
 from torch.nn.modules.batchnorm import BatchNorm2d
 from quan.func import SwithableBatchNorm
 import logging
@@ -14,11 +13,13 @@ from util import AverageMeter
 from timm.utils import reduce_tensor
 from quan.quantizer.lsq import LsqQuan, quant_operator, compute_thd, round_pass
 from quan.func import QuanConv2d, IdentityQuan, LsqQuan
+import wandb
+
+wandb.init(project="LIMPQ3")
 
 __all__ = ['train', 'validate', 'PerformanceScoreboard']
 
 logger = logging.getLogger()
-
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -56,6 +57,14 @@ def update_meter(meter, loss, acc1, acc5, size, batch_time, world_size):
     meter['batch_time'].update(batch_time)
 
 
+def update_meter_single(meter, loss, acc1, acc5, size, batch_time, world_size):
+    meter['loss'].update(loss.item(), size)
+    meter['top1'].update(acc1.item(), size)
+    meter['top5'].update(acc5.item(), size)
+    meter['batch_time'].update(batch_time)
+
+
+
 def start_cal_bn(model, train_loader, args, cal_limit=100):
     model.eval()
     for n, m in model.named_modules():
@@ -85,7 +94,8 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, monito
         'top1': AverageMeter(),
         'top5': AverageMeter(),
         'batch_time': AverageMeter()
-    } 
+    }
+    total_data_loading_time = 0
 
     total_sample = len(train_loader.sampler)
     batch_size = args.dataloader.batch_size
@@ -96,9 +106,12 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, monito
     num_updates = epoch * len(train_loader)
     model.train()
 
+    epoch_start_time = time.time()
     for batch_idx, (inputs, targets) in enumerate(train_loader):
+        data_loading_start_time = time.time()
         inputs = inputs.to(args.device)
         targets = targets.to(args.device)
+        total_data_loading_time += time.time() - data_loading_start_time
         optimizer.zero_grad()
 
         start_time = time.time()
@@ -107,7 +120,7 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, monito
         loss = criterion(outputs, targets)
         
         acc1, acc5 = accuracy(outputs.data, targets.data, topk=(1, 5))
-        update_meter(meter, loss, acc1, acc5, inputs.size(0), time.time() - start_time, args.world_size)
+        update_meter_single(meter, loss, acc1, acc5, inputs.size(0), time.time() - start_time, args.world_size)
 
         loss.backward()
         
@@ -133,6 +146,16 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, monito
                 "--------------------------------------------------------------------------------------------------------------")
     if args.local_rank == 0:
         logger.info('==> Top1: %.3f    Top5: %.3f    Loss: %.3f', meter['top1'].avg, meter['top5'].avg, meter['loss'].avg)
+    
+    wandb.log({
+                    'Trian_Loss': meter['loss'].avg,
+                    'Trian_Top1': meter['top1'].avg,
+                    'Trian_Top5': meter['top5'].avg,
+                    'Trian_BatchTime': meter['batch_time'].avg,
+                    'Trian_DataLoadingTime': total_data_loading_time,
+                    'Trian_EpochTime': time.time() - epoch_start_time,
+                    'LR': optimizer.param_groups[0]['lr']
+                }, step=epoch)
     
     return meter['top1'].avg, meter['top5'].avg, meter['loss'].avg
 
@@ -160,6 +183,7 @@ def validate(loaders, model, criterion, epoch, monitors, args, nr_random_sample=
 
     model.eval()
 
+    epoch_start_time = time.time()
     for batch_idx, (inputs, targets) in enumerate(data_loader):
         with torch.no_grad():
             inputs = inputs.to(args.device)
@@ -170,7 +194,7 @@ def validate(loaders, model, criterion, epoch, monitors, args, nr_random_sample=
             loss = alpha * criterion(outputs, targets)
 
             acc1, acc5 = accuracy(outputs.data, targets.data, topk=(1, 5))
-            update_meter(meter, loss, acc1, acc5, inputs.size(0), time.time() - start_time, args.world_size)
+            update_meter_single(meter, loss, acc1, acc5, inputs.size(0), time.time() - start_time, args.world_size)
 
             if args.local_rank == 0:
                 if (batch_idx + 1) % args.log.print_freq == 0:
@@ -185,13 +209,21 @@ def validate(loaders, model, criterion, epoch, monitors, args, nr_random_sample=
                         "--------------------------------------------------------------------------------------------------------------")
     if args.local_rank == 0:
         logger.info('==> Top1: %.3f    Top5: %.3f    Loss: %.3f', meter['top1'].avg, meter['top5'].avg, meter['loss'].avg)
-        
+
+    wandb.log({
+                    'Val_Loss': meter['loss'].avg,
+                    'Val_Top1': meter['top1'].avg,
+                    'Val_Top5': meter['top5'].avg,
+                    'Val_EpochTime': time.time() - epoch_start_time
+                }, step=epoch)
+
     return meter['top1'].avg, meter['top5'].avg, meter['loss'].avg
 
 
 class PerformanceScoreboard:
     def __init__(self, num_best_scores):
         self.board = list()
+        
         self.num_best_scores = num_best_scores
 
     def update(self, top1, top5, epoch):

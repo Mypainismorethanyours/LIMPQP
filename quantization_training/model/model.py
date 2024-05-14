@@ -7,7 +7,7 @@ def create_model(args):
     logger = logging.getLogger()
 
     model = None
-    if args.dataloader.dataset == 'imagenet':
+    if args.dataloader.dataset == 'cifar10':
         if args.arch == 'resnet18':
             model = timm.create_model('gluon_resnet18_v1b', pretrained=args.pre_trained)
         elif args.arch == 'resnet50':
