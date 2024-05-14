@@ -37,7 +37,7 @@ def main():
         # else:
         #     log_dir = util.init_logger(
         #         args.name, output_dir, script_dir / 'logging.conf')
-        log_dir = util.init_logger_win(
+        log_dir = util.init_logger(
             args.name, output_dir, script_dir / 'logging.conf')
         logger = logging.getLogger()
 

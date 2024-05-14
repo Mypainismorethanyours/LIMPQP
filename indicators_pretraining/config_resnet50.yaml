@@ -1,5 +1,5 @@
 # Experiment name
-name: resnet50_test
+name: resnet50
 target_bits: [6, 5, 4, 3, 2]
 
 gpu: v100_32g
