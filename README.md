@@ -3,7 +3,6 @@
 ## 1. Abstract
 
 We implemented Learned Step Size Quantization and trained a importance indicator to determine the optimal bit-width for each layer alongside Iterative Magnitude Pruning with Rewinding to optimize our neural network model.
-y
 
 ## 2. Implementation Differences From the Original Repo
 ### Pruning
