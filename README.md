@@ -107,7 +107,7 @@ cd quantization_training && python -m torch.distributed.launch --nproc_per_node=
 ```
 
 ## 6. Experiments
-At the current stage, we tested fine tuning using a single GPU on Windows and uploaded the results to Wandb(https://wandb.ai/stevenli/LIMPQandPruning/workspace?nw=nwuserstevenli).
+At the current stage, we tested fine tuning using a single GPU on Windows and uploaded the results to [Wandb](https://wandb.ai/stevenli/LIMPQandPruning/workspace?nw=nwuserstevenli).
   
 
 ## 7. Acknowledgement
