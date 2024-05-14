@@ -1,7 +1,7 @@
 # Experiment name
 name: resnet50_w3a4_12.2compression_ratio
-weight_bits: [6, 3, 4, 5, 4, 4, 5, 4, 4, 5, 4, 3, 4, 3, 3, 3, 4, 4, 3, 4, 4, 3, 4, 3, 2, 3, 2, 3, 2, 3, 3, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-act_bits:    [6, 4, 6, 6, 6, 3, 4, 6, 3, 4, 5, 3, 5, 5, 6, 3, 4, 5, 3, 4, 5, 3, 4, 4, 4, 6, 5, 5, 4, 5, 5, 4, 6, 5, 3, 5, 6, 3, 5, 6, 3, 6, 4, 4, 6, 2, 6, 4, 6, 6, 4, 6]
+weight_bits: [6, 6, 3, 6, 3, 4, 3, 4, 3, 2, 2, 5, 3, 2, 3, 2, 3, 3, 3, 2, 3, 4, 5, 3, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 3, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+act_bits:    [6, 4, 6, 6, 6, 4, 6, 6, 5, 6, 6, 2, 6, 6, 6, 6, 6, 6, 4, 6, 6, 2, 5, 5, 3, 6, 6, 6, 4, 4, 6, 3, 5, 6, 3, 5, 6, 3, 4, 6, 3, 6, 3, 2, 5, 4, 6, 3, 4, 6, 3, 5]
 
 gpu: a100_40g
 
@@ -13,15 +13,15 @@ training_device: gpu
 # Dataset loader
 dataloader:
   # Dataset to train/validate (choices: imagenet, cifar10)
-  dataset: imagenet
+  dataset: cifar10
   # Number of categories in the specified dataset (choices: 1000, 10)
-  num_classes: 1000
+  num_classes: 10
   # Path to dataset directory
   path: /path/to/imagenet
   # Size of mini-batch
   batch_size: 128
   # Number of data loading workers
-  workers: 8
+  workers: 0
   # Seeds random generators in a deterministic way (i.e., set all the seeds 0).
   # Please keep it true when resuming the experiment from a checkpoint
   deterministic: true
@@ -45,7 +45,7 @@ log:
 arch: resnet50
 freeze_weights: False
 # Use pre-trained model
-pre_trained: True
+pre_trained: False
 
 #============================ Quantization =====================================
 
@@ -86,7 +86,7 @@ eval: false
 fp_model: false
 
 # Optimizer
-epochs: 90
+epochs: 10
 smoothing: 0.1
 
 # Optimizer

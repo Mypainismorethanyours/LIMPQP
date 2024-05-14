@@ -31,7 +31,8 @@ dataloader:
   val_split: 0.02
 
 resume:
-  path: resnet50_checkpoint.pth.tar
+  # Path to checkpoint
+  path: checkpoint.pth.tar
   lean: false
 
 log:
